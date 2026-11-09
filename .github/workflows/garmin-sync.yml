@@ -1,0 +1,34 @@
+name: Garmin sync
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: garmin-sync
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install garminconnect cryptography
+      - uses: actions/cache@v4
+        with:
+          path: .garmin-tokens
+          key: garmin-tokens-${{ github.run_id }}
+          restore-keys: garmin-tokens-
+      - name: Fetch activities
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          SYNC_PASSPHRASE: ${{ secrets.SYNC_PASSPHRASE }}
+        run: python scripts/garmin_sync.py
+      - name: Commit if changed
+        run: |
+          git config user.name "garmin-sync"
+          git config user.email "garmin-sync@users.noreply.github.com"
+          git add daybook/garmin-activities.enc.json
+          git diff --cached --quiet || (git commit -m "Garmin sync" && git push)

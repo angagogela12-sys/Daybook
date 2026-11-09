@@ -1221,6 +1221,21 @@ function movePanel(p,pre){
     var d=dayData(k);d.activities.push({id:uid(),name:n,kcal:c});commit(k,d);toast(n+' logged');name.value='';kcal.value='';st.hidden=true;
   }},field('Activity',tools),field('Calories burned',kcal),st,h('button',{type:'submit',class:'btn block',text:'Add activity'})));
 
+  /* automatic Garmin sync */
+  var gSt=h('p',{class:'status',hidden:true}),hasPass=false;try{hasPass=!!localStorage.getItem(LS_GPASS);}catch(e){}
+  var gPass=h('input',{type:'password',placeholder:hasPass?'Passphrase saved. Type to change':'Sync passphrase',autocomplete:'off'});
+  var gLast='';try{gLast=localStorage.getItem(LS_GLAST)||'';}catch(e){}
+  p.appendChild(h('div',{class:'stack',style:'margin-top:18px'},
+    h('div',{class:'gh'},h('span',{text:'Auto-sync from Garmin'})),
+    h('p',{class:'status',text:'Needs the sync set up in your GitHub repo. Use the same passphrase you saved there.'+(gLast?' Last data from Garmin: '+gLast.replace('T',' ').replace('+00:00',' UTC')+'.':'')}),
+    field('Sync passphrase',gPass),
+    h('button',{type:'button',class:'btn block',onclick:async function(){
+      var v=gPass.value.trim();
+      if(v){try{localStorage.setItem(LS_GPASS,v);}catch(e){}}
+      gSt.hidden=false;gSt.textContent='Syncing…';
+      try{var r=await garminSync();gSt.textContent=r?(r.added+' new activities'+(r.dupes?', '+r.dupes+' already there':'')+'.'):'Enter your sync passphrase first.';gPass.value='';}
+      catch(e){gSt.textContent=(e&&e.message)||"Couldn't sync.";}
+    },text:'Save and sync now'}),gSt));
   /* import Garmin Connect activities CSV */
   var impSt=h('p',{class:'status',hidden:true});
   var fileIn=h('input',{type:'file',accept:'.csv,text/csv',style:'display:none',onchange:function(){
@@ -1247,30 +1262,61 @@ function parseCsv(t){
   if(f!==''||row.length){row.push(f);rows.push(row);}
   return rows;
 }
+var LS_GSEEN='daybook-garmin-seen',LS_GPASS='daybook-garmin-pass',LS_GLAST='daybook-garmin-last';
+function gSeen(){try{return JSON.parse(localStorage.getItem(LS_GSEEN))||{};}catch(e){return{};}}
+function addGarmin(list){
+  var seen=gSeen(),added=0,dupes=0,touched={};
+  list.forEach(function(a){
+    var id='garmin:'+a.id,d=touched[a.date]||dayData(a.date);
+    if(seen[id]||d.activities.some(function(x){return x.src===id;})){dupes++;seen[id]=1;return;}
+    d.activities.push({id:uid(),name:a.name,kcal:a.kcal,src:id});
+    touched[a.date]=d;seen[id]=1;added++;
+  });
+  try{localStorage.setItem(LS_GSEEN,JSON.stringify(seen));}catch(e){}
+  Object.keys(touched).forEach(function(k){state.days[k]=touched[k];persistDay(k);});
+  if(added)renderAll();
+  return{added:added,dupes:dupes};
+}
 function importGarminCsv(text){
   var rows=parseCsv(text);if(rows.length<2)throw new Error('That file looks empty.');
   var hd=rows[0].map(function(x){return x.trim().toLowerCase();});
   function col(n){return hd.indexOf(n);}
   var iDate=col('date'),iCal=col('calories'),iType=col('activity type'),iTitle=col('title'),iTime=col('time');
   if(iDate<0||iCal<0)throw new Error("This doesn't look like a Garmin activities CSV (no Date and Calories columns).");
-  var added=0,dupes=0,bad=0,touched={};
+  var list=[],bad=0;
   rows.slice(1).forEach(function(r){
-    var ds=(r[iDate]||'').trim(),m=ds.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    var ds=(r[iDate]||'').trim(),m=ds.match(/^(\d{4}-\d{2}-\d{2})/);
     if(!m){bad++;return;}
-    var k=m[1]+'-'+m[2]+'-'+m[3],id='garmin:'+ds;
     var kc=Math.round(parseFloat(String(r[iCal]||'').replace(/,/g,'')));if(!isFinite(kc)||kc<0)kc=0;
-    var d=touched[k]||dayData(k);
-    if(d.activities.some(function(a){return a.src===id;})){dupes++;return;}
     var nm=((iTitle>=0&&r[iTitle]||'').trim()||(iType>=0&&r[iType]||'').trim()||'Garmin activity');
     var tm=iTime>=0?(r[iTime]||'').trim().match(/^(\d+):(\d{2})/):null;
     if(tm){var mins=(+tm[1])*60+(+tm[2]);if(mins>0)nm+=' ('+mins+' min)';}
-    d.activities.push({id:uid(),name:nm.slice(0,80),kcal:kc,src:id});
-    touched[k]=d;added++;
+    list.push({id:ds.slice(0,19),date:m[1],name:nm.slice(0,80),kcal:kc});
   });
-  Object.keys(touched).forEach(function(k){state.days[k]=touched[k];persistDay(k);});
-  if(added)renderAll();
-  return{added:added,dupes:dupes,bad:bad};
+  var r=addGarmin(list);
+  return{added:r.added,dupes:r.dupes,bad:bad};
 }
+function b64d(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
+async function garminSync(){
+  var pass='';try{pass=localStorage.getItem(LS_GPASS)||'';}catch(e){}
+  if(!pass||!unlocked)return null;
+  var res=await fetch('garmin-activities.enc.json?t='+Date.now(),{cache:'no-store'});
+  if(!res.ok)throw new Error(res.status===404?'No synced data yet. The sync job has not produced a file.':'Could not load synced data ('+res.status+').');
+  var doc=await res.json();
+  var km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  var key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64d(doc.salt),iterations:doc.iter||200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+  var pt;try{pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(doc.iv)},key,b64d(doc.ct));}catch(e){throw new Error('Wrong passphrase.');}
+  var data=JSON.parse(new TextDecoder().decode(pt));
+  var r=addGarmin((data.activities||[]).map(function(a){return{id:a.id,date:String(a.id).slice(0,10),name:(a.name+(a.min>0?' ('+a.min+' min)':'')).slice(0,80),kcal:Math.round(a.kcal)||0};}));
+  try{localStorage.setItem(LS_GLAST,data.updated||'');}catch(e){}
+  return r;
+}
+var gBusy=false;
+function autoGarmin(){
+  if(gBusy)return;gBusy=true;
+  garminSync().then(function(r){if(r&&r.added)toast(r.added+' Garmin '+(r.added===1?'activity':'activities')+' synced');}).catch(function(){}).then(function(){gBusy=false;});
+}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)autoGarmin();});
 function waterPanel(p){
   var k=key(cur),day=dayData(k),custom=numIn('ml');
   p.appendChild(h('p',{class:'num',style:'font-size:15px'},h('b',{text:fmt(day.water)+' ml'}),' of '+fmt(state.waterGoal)+' ml today'));
@@ -1746,7 +1792,7 @@ setInterval(function(){renderNudge();},60000);
 document.querySelector('.view[data-view="today"]').classList.add('on');
 
 var remote=null;
-function startApp(){renderAll();if(remote)loadRemote();}
+function startApp(){renderAll();if(remote)loadRemote();autoGarmin();}
 async function loadRemote(){
   if(!remote||!unlocked)return;
   var snap=remote.snap;remote=null;
