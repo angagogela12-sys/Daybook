@@ -1220,6 +1220,56 @@ function movePanel(p,pre){
     if(!n||isNaN(c)||c<0){st.hidden=false;st.textContent='Add a name and calories burned.';return;}
     var d=dayData(k);d.activities.push({id:uid(),name:n,kcal:c});commit(k,d);toast(n+' logged');name.value='';kcal.value='';st.hidden=true;
   }},field('Activity',tools),field('Calories burned',kcal),st,h('button',{type:'submit',class:'btn block',text:'Add activity'})));
+
+  /* import Garmin Connect activities CSV */
+  var impSt=h('p',{class:'status',hidden:true});
+  var fileIn=h('input',{type:'file',accept:'.csv,text/csv',style:'display:none',onchange:function(){
+    var f=fileIn.files&&fileIn.files[0];if(!f)return;
+    impSt.hidden=false;impSt.textContent='Reading file…';
+    var rd=new FileReader();
+    rd.onload=function(){try{var r=importGarminCsv(String(rd.result||''));impSt.textContent=r.added+' activities imported'+(r.dupes?', '+r.dupes+' already there':'')+(r.bad?', '+r.bad+' skipped':'')+'.';if(r.added)toast(r.added+' activities imported');}catch(e){impSt.textContent=(e&&e.message)||"Couldn't read that file.";}fileIn.value='';};
+    rd.onerror=function(){impSt.textContent="Couldn't read that file.";};
+    rd.readAsText(f);
+  }});
+  p.appendChild(h('div',{class:'stack',style:'margin-top:18px'},
+    h('div',{class:'gh'},h('span',{text:'Import from Garmin'})),
+    h('p',{class:'status',text:'In Garmin Connect on a computer: Activities, then Export CSV. Pick that file here. Nothing leaves your device.'}),
+    h('button',{type:'button',class:'btn block',onclick:function(){fileIn.click();},text:'Choose Garmin CSV'}),fileIn,impSt));
+}
+function parseCsv(t){
+  var rows=[],row=[],f='',q=false;t=t.replace(/^﻿/,'');
+  for(var i=0;i<t.length;i++){var c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f='';}
+    else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);f='';if(row.length>1||row[0]!=='')rows.push(row);row=[];}
+    else f+=c;}
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+function importGarminCsv(text){
+  var rows=parseCsv(text);if(rows.length<2)throw new Error('That file looks empty.');
+  var hd=rows[0].map(function(x){return x.trim().toLowerCase();});
+  function col(n){return hd.indexOf(n);}
+  var iDate=col('date'),iCal=col('calories'),iType=col('activity type'),iTitle=col('title'),iTime=col('time');
+  if(iDate<0||iCal<0)throw new Error("This doesn't look like a Garmin activities CSV (no Date and Calories columns).");
+  var added=0,dupes=0,bad=0,touched={};
+  rows.slice(1).forEach(function(r){
+    var ds=(r[iDate]||'').trim(),m=ds.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if(!m){bad++;return;}
+    var k=m[1]+'-'+m[2]+'-'+m[3],id='garmin:'+ds;
+    var kc=Math.round(parseFloat(String(r[iCal]||'').replace(/,/g,'')));if(!isFinite(kc)||kc<0)kc=0;
+    var d=touched[k]||dayData(k);
+    if(d.activities.some(function(a){return a.src===id;})){dupes++;return;}
+    var nm=((iTitle>=0&&r[iTitle]||'').trim()||(iType>=0&&r[iType]||'').trim()||'Garmin activity');
+    var tm=iTime>=0?(r[iTime]||'').trim().match(/^(\d+):(\d{2})/):null;
+    if(tm){var mins=(+tm[1])*60+(+tm[2]);if(mins>0)nm+=' ('+mins+' min)';}
+    d.activities.push({id:uid(),name:nm.slice(0,80),kcal:kc,src:id});
+    touched[k]=d;added++;
+  });
+  Object.keys(touched).forEach(function(k){state.days[k]=touched[k];persistDay(k);});
+  if(added)renderAll();
+  return{added:added,dupes:dupes,bad:bad};
 }
 function waterPanel(p){
   var k=key(cur),day=dayData(k),custom=numIn('ml');
