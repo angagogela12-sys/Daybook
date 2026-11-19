@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Daybook</title>
-<meta name="theme-color" content="#C4285F">
+<meta name="theme-color" content="#F4ECE3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Daybook">
@@ -16,30 +16,21 @@
 </head>
 <body>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=DM+Sans:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: a phone-first single column with a bottom tab bar; at 900px+ the tabs become a left rail and Today/Insights split into two columns. */
 :root{
-  --bg:#F7F2F5;--surface:#FFFFFF;--surface2:#FAF5F8;--ink:#241A28;--mute:#6F6176;--line:#EADFE7;--track:#EFE6EC;
-  --accent:#C42B66;--on-accent:#FFFFFF;--accent-soft:#F9E3EC;
-  --over:#B4501B;--good:#2A8559;
-  --p:#3D6FD6;--c:#B07210;--f:#D4544D;--fi:#2A8559;--water:#1B8F9D;
-  --shadow:0 1px 2px rgba(36,26,40,.05),0 10px 26px -16px rgba(36,26,40,.28);
+  --bg:#F4ECE3;--surface:#FFFCF8;--surface2:#F9F1E8;--ink:#2B1B24;--mute:#7D6670;--line:#E6D8CC;--track:#EBDFD3;
+  --accent:#B5457F;--on-accent:#FFFFFF;--accent-soft:#F3DDE8;
+  --over:#B8651A;--good:#3F7D5A;
+  --p:#3D6FD6;--c:#B07210;--f:#D4544D;--fi:#3F7D5A;--water:#1B8F9D;
+  --shadow:0 1px 2px rgba(43,27,36,.05),0 10px 26px -16px rgba(43,27,36,.28);
+  color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#130E15;--surface:#1E1722;--surface2:#261E2B;--ink:#F6EEF3;--mute:#B09FB7;--line:#34293B;--track:#2E2433;
-  --accent:#FF6BA6;--on-accent:#2B0B19;--accent-soft:#3A1B2C;
-  --over:#F08A55;--good:#5FCB93;
-  --p:#7DA6FF;--c:#F0B04A;--f:#FF807A;--fi:#5FCB93;--water:#4FD0DD;--shadow:none;color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#130E15;--surface:#1E1722;--surface2:#261E2B;--ink:#F6EEF3;--mute:#B09FB7;--line:#34293B;--track:#2E2433;
-  --accent:#FF6BA6;--on-accent:#2B0B19;--accent-soft:#3A1B2C;
-  --over:#F08A55;--good:#5FCB93;
-  --p:#7DA6FF;--c:#F0B04A;--f:#FF807A;--fi:#5FCB93;--water:#4FD0DD;--shadow:none;color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--ink);font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body.lock{overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0;padding:0;text-align:inherit}
@@ -47,7 +38,7 @@ button{cursor:pointer;background:none;border:0;padding:0;text-align:inherit}
 h1,h2,h3,p{margin:0}
 .ic{display:block;flex:none}
 .num{font-variant-numeric:tabular-nums}
-.disp{font-family:'Fraunces',Georgia,serif;font-weight:700;letter-spacing:-.01em}
+.disp{font-family:'Bricolage Grotesque','Instrument Sans',system-ui,sans-serif;font-weight:700;letter-spacing:-.01em}
 
 /* shell + nav */
 .shell{max-width:1100px;margin:0 auto}
@@ -60,7 +51,7 @@ h1,h2,h3,p{margin:0}
 
 /* header */
 .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.head h1{font-family:'Fraunces',Georgia,serif;font-size:32px;line-height:1.1;letter-spacing:-.015em}
+.head h1{font-family:'Bricolage Grotesque','Instrument Sans',system-ui,sans-serif;font-size:32px;line-height:1.1;letter-spacing:-.015em}
 .head p{color:var(--mute);margin-top:4px;font-weight:500}
 .hactions{display:flex;gap:8px;align-items:center;flex:none}
 .pill{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-weight:700;font-size:13px;white-space:nowrap}
@@ -84,7 +75,7 @@ h1,h2,h3,p{margin:0}
 .col{display:grid;gap:14px;min-width:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow);min-width:0}
 .ch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
-.ch h3{font-family:'Fraunces',Georgia,serif;font-size:19px;letter-spacing:-.01em}
+.ch h3{font-family:'Bricolage Grotesque','Instrument Sans',system-ui,sans-serif;font-size:19px;letter-spacing:-.01em}
 .ch .sub{color:var(--mute);font-size:13px;font-weight:500}
 .link{color:var(--accent);font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:4px;min-height:32px}
 .empty{color:var(--mute);font-size:14px;padding:6px 0}
@@ -158,7 +149,7 @@ textarea{min-height:240px;resize:vertical;line-height:1.6}
 .tile .v{font-size:22px;margin-top:2px}
 .tile .s{color:var(--mute);font-size:12px;margin-top:2px}
 .chart{display:block;width:100%;height:auto;overflow:visible}
-.chart text{font-family:'DM Sans',system-ui,sans-serif}
+.chart text{font-family:'Instrument Sans',system-ui,sans-serif}
 .hbar{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;padding:6px 0;font-size:14px}
 .hbar .bar{margin-top:0;height:10px}
 .review p{margin-top:10px;line-height:1.6}
@@ -177,7 +168,7 @@ textarea{min-height:240px;resize:vertical;line-height:1.6}
 .scrim.open .sheet{transform:none}
 .grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
 .shead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.shead h2{font-family:'Fraunces',Georgia,serif;font-size:22px}
+.shead h2{font-family:'Bricolage Grotesque','Instrument Sans',system-ui,sans-serif;font-size:22px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:var(--bg);padding:10px 12px 10px 16px;border-radius:14px;display:flex;align-items:center;gap:12px;font-weight:500;max-width:calc(100vw - 32px)}
 .toast button{color:var(--accent);font-weight:700;padding:4px 8px;filter:brightness(1.35)}
 
@@ -280,7 +271,7 @@ var INC_CATS=['Salary','Business income','Other income'];
 var JOB_STATUS=['Applied','Interview','Offer','Rejected'];
 var MOODS=['Rough','Low','Okay','Good','Great'];
 var BUILTIN=['reading','devotion','study'];
-var LS='calorie-tracker-v1',LS_THEME='daybook-theme';
+var LS='calorie-tracker-v1';
 var DEFAULT_HABITS=[
   {id:'reading',name:'Reading',kind:'min',target:20},
   {id:'devotion',name:'Devotion',kind:'min',target:10},
@@ -1460,11 +1451,6 @@ function editHabit(hb){
 }
 
 /* ---------- SETTINGS ---------- */
-function applyTheme(v){
-  var r=document.documentElement;
-  if(v==='light'||v==='dark')r.setAttribute('data-theme',v);else r.removeAttribute('data-theme');
-}
-function getTheme(){try{return localStorage.getItem(LS_THEME)||'auto';}catch(e){return 'auto';}}
 function openSettings(){
   openSheet('Settings',function(body){
     var goal=numIn('',state.goal),water=numIn('',state.waterGoal),target=numIn('Optional',state.targetWeight||'','0.1');
@@ -1472,8 +1458,6 @@ function openSettings(){
     var nudgeOn=state.nudgeOn,nudgeSeg=h('div',{class:'seg'});
     var hourSel=h('select',{'aria-label':'Check-in time',value:String(state.nudgeHour)},[16,17,18,19,20,21,22].map(function(x){return h('option',{value:String(x),text:pad2(x)+':00'});}));
     function drawNudge(){nudgeSeg.innerHTML='';[[true,'On'],[false,'Off']].forEach(function(o){nudgeSeg.appendChild(h('button',{type:'button',class:'segbtn'+(nudgeOn===o[0]?' on':''),text:o[1],onclick:function(){nudgeOn=o[0];drawNudge();}}));});}drawNudge();
-    var theme=getTheme(),themeSeg=h('div',{class:'seg'});
-    function draw(){themeSeg.innerHTML='';[['auto','Auto'],['light','Light'],['dark','Dark']].forEach(function(o){themeSeg.appendChild(h('button',{type:'button',class:'segbtn'+(theme===o[0]?' on':''),text:o[1],onclick:function(){theme=o[0];applyTheme(theme);try{localStorage.setItem(LS_THEME,theme);}catch(e){}draw();}}));});}draw();
     var habList=h('div',{});
     function collect(){
       var g=parseInt(goal.value,10),w=parseInt(water.value,10),tw=parseFloat(target.value);
@@ -1494,7 +1478,7 @@ function openSettings(){
       h('button',{type:'button',class:'btn ghost block',onclick:function(){collect();editHabit(null);}},ic('plus',18),'New habit'),
       h('div',{class:'hr'}),h('div',{class:'gh'},h('span',{text:'Evening check-in'})),nudgeSeg,field('Show it after',hourSel),
       h('p',{class:'status',text:'A card on Today lists food, water or habits still missing. It appears when you open Daybook after this time.'}),
-      h('div',{class:'hr'}),h('div',{class:'gh'},h('span',{text:'Appearance'})),themeSeg,
+      
       h('div',{class:'hr'}),h('div',{class:'gh'},h('span',{text:'Security'})),
       h('button',{type:'button',class:'btn ghost block',onclick:function(){collect();openSecurity();}},ic('shield',18),(lockMeta?'App lock is on. ':'')+'Security and backup'),
       h('button',{type:'submit',class:'btn block',text:'Save settings'})));
@@ -1787,7 +1771,6 @@ $('wnext').addEventListener('click',function(){cur=addDays(cur,7);renderAll();sy
 
 function hideOnPermanentError(e){return e&&['not_granted','sampling_disabled','not_declared','capability_disabled'].indexOf(e.code)!==-1;}
 
-applyTheme(getTheme());
 setInterval(function(){renderNudge();},60000);
 document.querySelector('.view[data-view="today"]').classList.add('on');
 
