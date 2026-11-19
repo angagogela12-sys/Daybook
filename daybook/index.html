@@ -28,6 +28,7 @@
   color-scheme:light;
 }
 
+.planframe{display:block;width:100%;min-height:480px;border:0;background:var(--bg)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -122,6 +123,7 @@ h1,h2,h3,p{margin:0}
 .seg{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:4px;overflow-x:auto}
 .segbtn{flex:1;min-height:38px;padding:0 12px;border-radius:10px;font-weight:700;font-size:14px;color:var(--mute);text-align:center;white-space:nowrap}
 .segbtn.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+#v-life>.seg:first-child{flex-wrap:nowrap}#v-life>.seg:first-child .segbtn{padding:0 4px;font-size:13px}
 .field{display:grid;gap:6px;min-width:0}
 .field>span{font-size:13px;font-weight:700;color:var(--mute)}
 input[type=text],input[type=number],input[type=time],input[type=date],select,textarea{width:100%;min-height:46px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);min-width:0}
@@ -928,10 +930,78 @@ function renderMoney(){
 function renderLife(){
   var root=$('v-life');root.innerHTML='';
   root.appendChild(h('div',{class:'seg',role:'tablist',style:'margin-bottom:14px'},
-    [['habits','Habits'],['tasks','Tasks'],['jobs','Jobs'],['journal','Journal']].map(function(t){return h('button',{type:'button',role:'tab','aria-selected':lifeTab===t[0]?'true':'false',class:'segbtn'+(lifeTab===t[0]?' on':''),onclick:function(){lifeTab=t[0];renderLife();},text:t[1]});})));
+    [['habits','Habits'],['tasks','Tasks'],['jobs','Jobs'],['journal','Journal'],['plan','Plan']].map(function(t){return h('button',{type:'button',role:'tab','aria-selected':lifeTab===t[0]?'true':'false',class:'segbtn'+(lifeTab===t[0]?' on':''),onclick:function(){lifeTab=t[0];renderLife();},text:t[1]});})));
   var body=h('div',{});root.appendChild(body);
-  if(lifeTab==='habits')lifeHabits(body);else if(lifeTab==='tasks')lifeTasks(body);else if(lifeTab==='jobs')lifeJobs(body);else lifeJournal(body);
+  if(lifeTab==='habits')lifeHabits(body);else if(lifeTab==='tasks')lifeTasks(body);else if(lifeTab==='jobs')lifeJobs(body);else if(lifeTab==='plan')lifePlan(body);else lifeJournal(body);
 }
+/* ---------- PLAN (encrypted Life-Dashboard) ---------- */
+var LS_PLANPASS='daybook-plan-pass',LS_PLANDOC='daybook-plan-doc',planData=null,planPane='today',planTried=false,planUrls={};
+async function planUnlock(pass){
+  var text='';
+  try{
+    var res=await fetch('life.enc.json?t='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw new Error('Could not load the plan ('+res.status+').');
+    text=await res.text();try{localStorage.setItem(LS_PLANDOC,text);}catch(e){}
+  }catch(err){
+    try{text=localStorage.getItem(LS_PLANDOC)||'';}catch(e){text='';}
+    if(!text)throw err;
+  }
+  var doc=JSON.parse(text);
+  var km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  var key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64d(doc.salt),iterations:doc.iter||200000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+  var pt;try{pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(doc.iv)},key,b64d(doc.ct));}catch(e){throw new Error('Wrong passphrase.');}
+  planData=JSON.parse(new TextDecoder().decode(pt));
+  try{localStorage.setItem(LS_PLANPASS,pass);}catch(e){}
+}
+function planLock(){
+  planData=null;planTried=true;
+  Object.keys(planUrls).forEach(function(k){try{URL.revokeObjectURL(planUrls[k]);}catch(e){}});planUrls={};
+  try{localStorage.removeItem(LS_PLANPASS);}catch(e){}
+}
+function planFrame(){
+  var pane=planPane==='full'?'full':'today';
+  if(!planUrls[pane])planUrls[pane]=URL.createObjectURL(new Blob([planData[pane]],{type:'text/html'}));
+  var fr=h('iframe',{class:'planframe',title:pane==='full'?'Full dashboard':'Today',src:planUrls[pane]});
+  fr.addEventListener('load',function(){
+    var d=fr.contentDocument;if(!d)return;
+    function fit(){fr.style.height=Math.max(480,d.documentElement.scrollHeight)+'px';}
+    fit();
+    try{new ResizeObserver(fit).observe(d.documentElement);}catch(e){}
+    d.addEventListener('click',function(ev){
+      var a=ev.target.closest&&ev.target.closest('a[href^="#"]');
+      if(!a||a.getAttribute('href').length<2)return;
+      var t=d.getElementById(a.getAttribute('href').slice(1));if(!t)return;
+      ev.preventDefault();
+      window.scrollTo({top:window.pageYOffset+fr.getBoundingClientRect().top+t.getBoundingClientRect().top-12,behavior:'smooth'});
+    });
+  });
+  return fr;
+}
+function lifePlan(body){
+  if(planData){
+    body.appendChild(h('div',{class:'seg',role:'tablist',style:'margin-bottom:12px'},
+      [['today','Today'],['full','Full dashboard']].map(function(t){return h('button',{type:'button',role:'tab',class:'segbtn'+(planPane===t[0]?' on':''),'aria-selected':planPane===t[0]?'true':'false',onclick:function(){planPane=t[0];renderLife();},text:t[1]});})));
+    body.appendChild(planFrame());
+    body.appendChild(h('div',{style:'margin-top:14px;text-align:center'},h('button',{type:'button',class:'link',onclick:function(){planLock();renderLife();},text:'Lock the plan'})));
+    return;
+  }
+  var pass=h('input',{type:'password',placeholder:'Plan passphrase',autocomplete:'off'}),st=h('p',{class:'status',hidden:true});
+  async function go(v){
+    st.hidden=false;st.textContent='Unlocking…';
+    try{await planUnlock(v);renderLife();}
+    catch(e){st.textContent=(e&&e.message)||"Couldn't unlock.";}
+  }
+  body.appendChild(h('div',{class:'stack'},
+    h('div',{class:'gh'},h('span',{text:'Plan and money system'})),
+    h('p',{class:'status',text:'Locked. Your plan and money figures are stored encrypted and open only with your passphrase.'}),
+    field('Plan passphrase',pass),
+    h('button',{type:'button',class:'btn block',text:'Unlock',onclick:function(){var v=pass.value.trim();if(v)go(v);else{st.hidden=false;st.textContent='Enter your passphrase.';}}}),st));
+  if(!planTried){planTried=true;var saved='';try{saved=localStorage.getItem(LS_PLANPASS)||'';}catch(e){}if(saved)go(saved);}
+}
+window.addEventListener('message',function(ev){
+  if(ev.origin!==location.origin||!planData)return;
+  if(ev.data==='plan:full'||ev.data==='plan:today'){planPane=ev.data.slice(5);if(view==='life'&&lifeTab==='plan')renderLife();window.scrollTo(0,0);}
+});
 function lifeHabits(body){
   var k=key(cur),day=dayData(k),start=weekStart(cur),today=key(new Date());
   var grid=h('div',{class:'cols'});body.appendChild(grid);
